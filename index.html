@@ -207,14 +207,28 @@ function getToken() {
   return localStorage.getItem('clickup_token');
 }
 
+// Normalize client name variants to canonical name
+const CLIENT_MAP = {
+  'RAJA STORE BH': 'RAJA STORE',
+  'ASSISTEC CELULARES': 'ASSISTEC CELULARES',
+};
+function normalizeClient(name) {
+  const upper = name.trim().toUpperCase();
+  return CLIENT_MAP[upper] || upper;
+}
+
 function parseTask(t) {
   const m = t.name.match(/^(.+?)\s*-\s*R\$\s*([\d.,]+)\s*-\s*Venc:/i);
   if (!m) return null;
+  // ClickUp direct API returns status as object { status: "...", color: "..." }
+  const statusStr = (typeof t.status === 'object' && t.status !== null)
+    ? (t.status.status || '').toLowerCase()
+    : String(t.status || '').toLowerCase();
   return {
-    client: m[1].trim().toUpperCase(),
+    client: normalizeClient(m[1]),
     value: parseFloat(m[2].replace(/\./g, '').replace(',', '.')),
     dueDate: parseInt(t.due_date),
-    status: t.status
+    status: statusStr
   };
 }
 
