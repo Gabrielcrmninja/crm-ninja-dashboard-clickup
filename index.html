@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard Financeiro — CRM Ninja</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8fafc; color: #1e293b; min-height: 100vh; padding: 24px; }
+
+  /* Token screen */
+  #token-screen {
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+  .token-box {
+    background: #fff; border-radius: 16px; padding: 40px 36px;
+    border: 1px solid #e2e8f0; max-width: 420px; width: 100%;
+    box-shadow: 0 4px 24px rgba(0,0,0,.06);
+  }
+  .token-box h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; color: #0f172a; }
+  .token-box p { font-size: 0.83rem; color: #64748b; margin-bottom: 20px; line-height: 1.5; }
+  .token-box input {
+    width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0;
+    border-radius: 8px; font-size: 0.85rem; margin-bottom: 12px;
+    outline: none; font-family: monospace;
+  }
+  .token-box input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,.1); }
+  .token-box button {
+    width: 100%; padding: 10px; background: #3b82f6; color: #fff;
+    border: none; border-radius: 8px; font-size: 0.9rem; font-weight: 600;
+    cursor: pointer;
+  }
+  .token-box button:hover { background: #2563eb; }
+  .token-hint { font-size: 0.72rem; color: #94a3b8; margin-top: 10px; }
+
+  /* Main layout */
+  #main { display: none; }
+  header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; flex-wrap: wrap; gap: 8px; }
+  header h1 { font-size: 1.25rem; font-weight: 700; color: #0f172a; }
+  header .sub { font-size: 0.75rem; color: #94a3b8; margin-top: 2px; }
+  .header-actions { display: flex; gap: 8px; }
+  .btn { padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; font-weight: 600; border: none; }
+  .btn-primary { background: #3b82f6; color: #fff; }
+  .btn-primary:hover { background: #2563eb; }
+  .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+  .btn-ghost { background: #f1f5f9; color: #64748b; }
+  .btn-ghost:hover { background: #e2e8f0; }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .card { background: #fff; border-radius: 10px; padding: 14px; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,.04); }
+  .card .label { font-size: 0.67rem; color: #94a3b8; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .card .value { font-size: 1.3rem; font-weight: 700; color: #0f172a; }
+  .card .value.green { color: #16a34a; }
+  .card .value.blue { color: #2563eb; }
+  .card .value.yellow { color: #d97706; }
+  .card .value.purple { color: #7c3aed; }
+  .card .sub { font-size: 0.67rem; color: #94a3b8; margin-top: 3px; }
+
+  /* Charts */
+  .charts { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 20px; }
+  @media (max-width: 640px) { .charts { grid-template-columns: 1fr; } }
+  .chart-box { background: #fff; border-radius: 10px; padding: 16px; border: 1px solid #e2e8f0; }
+  .chart-box h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin-bottom: 12px; }
+  canvas { max-height: 220px; }
+
+  /* Tables */
+  .section { background: #fff; border-radius: 10px; padding: 16px; border: 1px solid #e2e8f0; margin-bottom: 16px; }
+  .section h2 { font-size: 0.7rem; text-transform: uppercase; letter-spacing: .06em; color: #94a3b8; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  th { color: #94a3b8; font-weight: 500; text-align: left; padding: 7px 8px; font-size: 0.68rem; text-transform: uppercase; border-bottom: 1px solid #f1f5f9; }
+  td { padding: 9px 8px; border-bottom: 1px solid #f8fafc; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #f8fafc; }
+  tfoot td { font-weight: 600; padding-top: 12px; border-top: 1px solid #e2e8f0; border-bottom: none; }
+
+  .progress-wrap { background: #f1f5f9; border-radius: 20px; height: 7px; min-width: 60px; }
+  .progress-bar { height: 7px; border-radius: 20px; background: linear-gradient(90deg, #3b82f6, #8b5cf6); }
+  .progress-bar.warn { background: linear-gradient(90deg, #f59e0b, #eab308); }
+  .progress-bar.danger { background: linear-gradient(90deg, #ef4444, #f97316); }
+
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 0.67rem; font-weight: 600; }
+  .badge.ok     { background: #dcfce7; color: #15803d; }
+  .badge.late   { background: #fee2e2; color: #dc2626; }
+  .badge.pending{ background: #dbeafe; color: #1d4ed8; }
+  .badge.future { background: #ede9fe; color: #7c3aed; }
+
+  .align-right { text-align: right; }
+  .bold { font-weight: 600; }
+  .green { color: #16a34a; }
+  .blue  { color: #2563eb; }
+  .yellow{ color: #d97706; }
+
+  /* Loading/error */
+  #loading { text-align: center; padding: 60px; color: #94a3b8; font-size: 0.9rem; }
+  .err-box { background: #fff; border-radius: 10px; padding: 24px; border: 1px solid #fee2e2; text-align: center; color: #dc2626; font-size: 0.85rem; }
+  .err-box pre { margin: 10px auto; background: #fff5f5; padding: 8px; border-radius: 6px; font-size: 0.7rem; white-space: pre-wrap; word-break: break-all; max-width: 500px; text-align: left; }
+
+  .footer { font-size: 0.68rem; color: #cbd5e1; text-align: right; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- TOKEN SCREEN -->
+<div id="token-screen">
+  <div class="token-box">
+    <h2>🔑 Configurar acesso</h2>
+    <p>Cole seu token de API do ClickUp para que o dashboard busque os dados automaticamente. Ele fica salvo só no seu navegador.</p>
+    <input type="password" id="token-input" placeholder="pk_xxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+    <button onclick="saveToken()">Entrar</button>
+    <div class="token-hint">
+      Token em: ClickUp → Configurações → Apps → API Token
+    </div>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loading" style="display:none">⏳ Carregando dados...</div>
+
+<!-- MAIN DASHBOARD -->
+<div id="main">
+  <header>
+    <div>
+      <h1>📊 Dashboard Financeiro — CRM Ninja</h1>
+      <div class="sub" id="last-update"></div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="clearToken()">Trocar token</button>
+      <button class="btn btn-primary" id="refreshBtn" onclick="loadData()">↻ Atualizar</button>
+    </div>
+  </header>
+
+  <div id="error-box" style="display:none"></div>
+  <div id="cards" class="cards"></div>
+
+  <div class="charts">
+    <div class="chart-box">
+      <h2>Recebimentos Mensais</h2>
+      <canvas id="barChart"></canvas>
+    </div>
+    <div class="chart-box">
+      <h2>MRR por Cliente</h2>
+      <canvas id="donutChart"></canvas>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Contratos Anuais — Progresso</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Cliente</th><th>Início</th><th>Término</th>
+          <th>MRR</th><th>Meses Pagos</th><th>Progresso</th>
+          <th class="align-right">Restante</th><th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="contractBody"></tbody>
+      <tfoot id="contractFoot"></tfoot>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Próximos Vencimentos (30 dias)</h2>
+    <table>
+      <thead>
+        <tr><th>Cliente</th><th>Vencimento</th><th class="align-right">Valor</th><th>Status</th></tr>
+      </thead>
+      <tbody id="upcomingBody"></tbody>
+    </table>
+  </div>
+
+  <div class="footer" id="footer-date"></div>
+</div>
+
+<script>
+const LIST_ID = '901327300068';
+let barChartInst = null, donutChartInst = null;
+
+function fmt(n) {
+  return 'R$ ' + Number(n).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function fmtDate(ms) {
+  return new Date(Number(ms)).toLocaleDateString('pt-BR');
+}
+function monthKey(ms) {
+  const d = new Date(Number(ms));
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+function saveToken() {
+  const t = document.getElementById('token-input').value.trim();
+  if (!t) return;
+  localStorage.setItem('clickup_token', t);
+  document.getElementById('token-screen').style.display = 'none';
+  loadData();
+}
+
+function clearToken() {
+  localStorage.removeItem('clickup_token');
+  location.reload();
+}
+
+function getToken() {
+  return localStorage.getItem('clickup_token');
+}
+
+function parseTask(t) {
+  const m = t.name.match(/^(.+?)\s*-\s*R\$\s*([\d.,]+)\s*-\s*Venc:/i);
+  if (!m) return null;
+  return {
+    client: m[1].trim().toUpperCase(),
+    value: parseFloat(m[2].replace(/\./g, '').replace(',', '.')),
+    dueDate: parseInt(t.due_date),
+    status: t.status
+  };
+}
+
+async function fetchTasks(token, page = 0) {
+  const url = `https://api.clickup.com/api/v2/list/${LIST_ID}/task?include_closed=true&order_by=due_date&page=${page}`;
+  const res = await fetch(url, { headers: { Authorization: token } });
+  if (!res.ok) throw new Error(`ClickUp API ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+async function loadData() {
+  const token = getToken();
+  if (!token) { location.reload(); return; }
+
+  const btn = document.getElementById('refreshBtn');
+  btn.disabled = true;
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('error-box').style.display = 'none';
+
+  try {
+    // Fetch all pages
+    let allTasks = [], page = 0;
+    while (true) {
+      const data = await fetchTasks(token, page);
+      allTasks = allTasks.concat(data.tasks || []);
+      if (!data.tasks || data.tasks.length < 100) break;
+      page++;
+    }
+
+    const tasks = allTasks.map(parseTask).filter(Boolean);
+    if (!tasks.length) throw new Error('Nenhuma task encontrada na lista.');
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+
+    buildDashboard(tasks);
+
+    const now = new Date().toLocaleString('pt-BR');
+    document.getElementById('last-update').textContent = `Atualizado em ${now}`;
+    document.getElementById('footer-date').textContent = `CRM Ninja · Dados ao vivo do ClickUp · ${now}`;
+  } catch(e) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('main').style.display = 'block';
+    document.getElementById('error-box').innerHTML = `
+      <div class="err-box">
+        ❌ Erro ao carregar dados.<br>
+        <pre>${e.message}</pre>
+        <button class="btn btn-primary" style="margin-top:8px" onclick="loadData()">Tentar novamente</button>
+        &nbsp;
+        <button class="btn btn-ghost" style="margin-top:8px" onclick="clearToken()">Trocar token</button>
+      </div>`;
+    document.getElementById('error-box').style.display = 'block';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function buildDashboard(tasks) {
+  const today = Date.now();
+  const in30  = today + 30 * 86400000;
+
+  // Group by client
+  const groups = {};
+  for (const t of tasks) {
+    if (!groups[t.client]) groups[t.client] = [];
+    groups[t.client].push(t);
+  }
+
+  // Contract per client
+  const contracts = [];
+  for (const [name, payments] of Object.entries(groups)) {
+    const sorted = [...payments].sort((a,b) => a.dueDate - b.dueDate);
+    const firstDate  = sorted[0].dueDate;
+    const contractEnd = firstDate + 365 * 86400000;
+    const mrr  = sorted[sorted.length - 1].value;
+    const paid = payments.filter(p => p.status === 'recebidos').length;
+    const late = payments.filter(p => p.status === 'inadimplentes').length;
+    const remaining = Math.max(0, 12 - paid);
+    const pct = Math.round((paid / 12) * 100);
+
+    let statusLabel = 'Em dia', statusClass = 'pending';
+    if (firstDate > today)  { statusLabel = 'Futuro';       statusClass = 'future'; }
+    else if (late > 0)      { statusLabel = 'Inadimplente'; statusClass = 'late';   }
+
+    contracts.push({ name, firstDate, contractEnd, mrr, paid, late, remaining, remainingValue: remaining * mrr, pct, statusLabel, statusClass, payments });
+  }
+  contracts.sort((a,b) => a.firstDate - b.firstDate);
+
+  // Metrics
+  const totalMrr       = contracts.filter(c => c.firstDate <= today).reduce((s,c) => s + c.mrr, 0);
+  const arr            = contracts.reduce((s,c) => s + c.mrr * 12, 0);
+  const totalReceived  = tasks.filter(t => t.status === 'recebidos').reduce((s,t) => s + t.value, 0);
+  const totalLate      = tasks.filter(t => t.status === 'inadimplentes').reduce((s,t) => s + t.value, 0);
+  const totalRemaining = contracts.reduce((s,c) => s + c.remainingValue, 0);
+  const vencidas  = tasks.filter(t => t.dueDate <= today);
+  const paidCount = vencidas.filter(t => t.status === 'recebidos').length;
+  const rate      = vencidas.length > 0 ? Math.round(paidCount / vencidas.length * 100) : 100;
+  const lateClients = contracts.filter(c => c.late > 0).map(c => c.name).join(', ') || 'Nenhum';
+
+  document.getElementById('cards').innerHTML = `
+    <div class="card"><div class="label">MRR</div><div class="value blue">${fmt(totalMrr)}</div><div class="sub">Receita mensal recorrente</div></div>
+    <div class="card"><div class="label">ARR Contratado</div><div class="value purple">${fmt(arr)}</div><div class="sub">Valor total dos contratos</div></div>
+    <div class="card"><div class="label">Já Recebido</div><div class="value green">${fmt(totalReceived)}</div><div class="sub">Pagamentos confirmados</div></div>
+    <div class="card"><div class="label">Restante Contratos</div><div class="value blue">${fmt(totalRemaining)}</div><div class="sub">A receber nos contratos</div></div>
+    <div class="card"><div class="label">Inadimplente</div><div class="value yellow">${fmt(totalLate)}</div><div class="sub">${lateClients}</div></div>
+    <div class="card"><div class="label">Taxa Recebimento</div><div class="value ${rate >= 90 ? 'green' : 'yellow'}">${rate}%</div><div class="sub">Das faturas vencidas</div></div>
+  `;
+
+  // Bar chart — monthly
+  const months = {};
+  for (const t of tasks) {
+    const k = monthKey(t.dueDate);
+    if (!months[k]) months[k] = { received: 0, late: 0, pending: 0 };
+    if      (t.status === 'recebidos')    months[k].received += t.value;
+    else if (t.status === 'inadimplentes') months[k].late    += t.value;
+    else                                   months[k].pending += t.value;
+  }
+  const sortedMonths = Object.keys(months).sort();
+  const barLabels = sortedMonths.map(k => {
+    const [y, m] = k.split('-');
+    return new Date(+y, +m-1).toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' }).replace('. ', '/');
+  });
+
+  if (barChartInst) barChartInst.destroy();
+  barChartInst = new Chart(document.getElementById('barChart').getContext('2d'), {
+    type: 'bar',
+    data: {
+      labels: barLabels,
+      datasets: [
+        { label: 'Recebido',    data: sortedMonths.map(k => months[k].received), backgroundColor: '#3b82f6', borderRadius: 4 },
+        { label: 'Inadimplente',data: sortedMonths.map(k => months[k].late),     backgroundColor: '#f59e0b', borderRadius: 4 },
+        { label: 'A Receber',   data: sortedMonths.map(k => months[k].pending),  backgroundColor: '#e2e8f0', borderRadius: 4 },
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { labels: { color: '#64748b', font: { size: 10 } } } },
+      scales: {
+        x: { stacked: true, ticks: { color: '#94a3b8', font: { size: 10 } }, grid: { display: false } },
+        y: { stacked: true, ticks: { color: '#94a3b8', font: { size: 10 }, callback: v => 'R$'+v }, grid: { color: '#f1f5f9' } }
+      }
+    }
+  });
+
+  // Donut
+  const active = contracts.filter(c => c.firstDate <= today);
+  if (donutChartInst) donutChartInst.destroy();
+  donutChartInst = new Chart(document.getElementById('donutChart').getContext('2d'), {
+    type: 'doughnut',
+    data: {
+      labels: active.map(c => c.name),
+      datasets: [{ data: active.map(c => c.mrr), backgroundColor: ['#3b82f6','#8b5cf6','#06b6d4','#10b981','#f59e0b','#f97316','#ef4444'], borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: {
+      responsive: true, cutout: '62%',
+      plugins: {
+        legend: { position: 'bottom', labels: { color: '#64748b', font: { size: 10 }, padding: 8, boxWidth: 10 } },
+        tooltip: { callbacks: { label: ctx => ` ${fmt(ctx.raw)}/mês` } }
+      }
+    }
+  });
+
+  // Contract table
+  let rows = '', totRem = 0, totMrr = 0;
+  for (const c of contracts) {
+    totRem += c.remainingValue; totMrr += c.mrr;
+    const pbarCls = c.statusClass === 'late' ? 'danger' : c.pct < 15 ? 'warn' : '';
+    rows += `<tr>
+      <td class="bold">${c.name}</td>
+      <td>${fmtDate(c.firstDate)}</td>
+      <td>${fmtDate(c.contractEnd)}</td>
+      <td class="blue">${fmt(c.mrr)}</td>
+      <td>${c.paid}/12</td>
+      <td><div class="progress-wrap"><div class="progress-bar ${pbarCls}" style="width:${Math.max(c.pct,1)}%"></div></div>
+          <div style="font-size:.65rem;color:#94a3b8;margin-top:2px">${c.pct}%</div></td>
+      <td class="align-right ${c.statusClass==='late'?'yellow':'green'}">${fmt(c.remainingValue)}</td>
+      <td><span class="badge ${c.statusClass}">${c.statusLabel}</span></td>
+    </tr>`;
+  }
+  document.getElementById('contractBody').innerHTML = rows;
+  document.getElementById('contractFoot').innerHTML = `<tr>
+    <td colspan="3">TOTAL</td><td class="blue">${fmt(totMrr)}/mês</td>
+    <td></td><td></td><td class="align-right green">${fmt(totRem)}</td><td></td>
+  </tr>`;
+
+  // Upcoming
+  const upcoming = tasks.filter(t => t.dueDate >= today - 86400000 && t.dueDate <= in30 && t.status !== 'recebidos').sort((a,b) => a.dueDate - b.dueDate);
+  document.getElementById('upcomingBody').innerHTML = upcoming.length
+    ? upcoming.map(t => `<tr>
+        <td class="bold">${t.client}</td>
+        <td>${fmtDate(t.dueDate)}</td>
+        <td class="align-right blue">${fmt(t.value)}</td>
+        <td><span class="badge ${t.status==='inadimplentes'?'late':'pending'}">${t.status==='inadimplentes'?'Inadimplente':'Pendente'}</span></td>
+      </tr>`).join('')
+    : '<tr><td colspan="4" style="color:#94a3b8;text-align:center;padding:16px">Nenhum vencimento nos próximos 30 dias</td></tr>';
+}
+
+// Init
+(function init() {
+  const token = getToken();
+  if (token) {
+    document.getElementById('token-screen').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+    loadData();
+  }
+  document.getElementById('token-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveToken(); });
+})();
+</script>
+</body>
+</html>
